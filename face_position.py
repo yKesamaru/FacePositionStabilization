@@ -11,7 +11,8 @@ mp_face_mesh = mp.solutions.face_mesh
 face_mesh = mp_face_mesh.FaceMesh()
 
 # input.mp4から映像を取得
-cap = cv2.VideoCapture("assets/input.mp4")
+cap = cv2.VideoCapture("assets/happy.mp4")
+# cap = cv2.VideoCapture("assets/input.mp4")
 
 # 動画のフレームサイズを取得
 width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -22,7 +23,8 @@ fixed_eye_x = width // 2
 fixed_eye_y = height // 2
 
 # 両目の固定距離（ピクセル単位で設定、例えば100）
-fixed_eye_distance = 100
+fixed_eye_distance = 200
+# fixed_eye_distance = 100
 
 # 出力動画の設定
 fourcc = cv2.VideoWriter_fourcc(*'mp4v')

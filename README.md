@@ -1,127 +1,174 @@
+# まばたきを検知するPythonコードの解説
 
-![](https://raw.githubusercontent.com/yKesamaru/FacePositionStabilization/master/assets/bird_and_girl.png)
+![](assets/blink.png)
 
-
-- [はじめに](#はじめに)
-- [元動画](#元動画)
-- [各部分の詳細](#各部分の詳細)
-  - [顔の検出](#顔の検出)
-  - [両目の中心を計算](#両目の中心を計算)
-  - [両目の距離とスケーリングファクターの計算](#両目の距離とスケーリングファクターの計算)
-  - [平行移動とスケーリング](#平行移動とスケーリング)
-  - [画像の回転](#画像の回転)
-- [結果](#結果)
-- [まとめ](#まとめ)
-  - [顔認証・顔検出](#顔認証顔検出)
-  - [ビデオ会議](#ビデオ会議)
-  - [ヒューマンコンピュータインタラクション（HCI）](#ヒューマンコンピュータインタラクションhci)
-  - [医療診断](#医療診断)
+- [まばたきを検知するPythonコードの解説](#まばたきを検知するpythonコードの解説)
+  - [はじめに](#はじめに)
+  - [まばたき検知の原理](#まばたき検知の原理)
+  - [実際のコード](#実際のコード)
 
 
 ## はじめに
-皆さんは、鳥の「頭を静止させる不思議な能力」をご存知ですか？
-試しに「bird head stability」などで検索をかけてみてください。とてもかわいいですよ。
-![](https://raw.githubusercontent.com/yKesamaru/FacePositionStabilization/master/assets/bird_head_stabilzation.gif)
+顔のなりすまし対策は、顔認識システムのセキュリティにとって重要です。
+まばたき検知は、このアンチスプーフィング手法の1つとして用いられます。
 
-調べてみましたが、この現象に特定の名前があるわけではないようです。
-この能力は鳥の首関節の驚異的な柔軟性に起因するそうで、頭を静止させることで、激しい飛行中の環境内オブジェクト追跡を可能にしているそうです。
+アンチスプーフィングについてのサーベイ論文は、2023年の[Deep Learning for Face Anti-Spoofing: A Survey](https://arxiv.org/abs/2106.14948)が詳しいです。この論文ではさまざまなアンチスプーフィング手法と、それに対する研究が紹介されています。
 
-この性質を利用して、鳥の頭にカメラを取り付け、スタビライザー（ジンバル）のように動かないカメラを作る猛者（CM）もいるようです。アホですね（褒め言葉）。大好きです。
+![](assets/2023-08-30-18-44-19.png)
+![](assets/2023-08-30-19-08-11.png)
 
-![](https://raw.githubusercontent.com/yKesamaru/FacePositionStabilization/master/assets/2023-08-29-19-24-43.png)
+> Most traditional algorithms are designed based on human liveness cues and handcrafted features, which need rich task-aware prior knowledge for design. In term of the methods based on the liveness cues, eye-blinking [2], [7], [8], face and head movement [9], [10] (e.g., nodding and smiling), gaze tracking [11], [12] and remote physiological signals (e.g., rPPG [3], [13], [14], [15]) are explored for dynamic discrimination.
+> However, these physiological liveness cues are usually captured from long-term interactive face videos, which is inconvenient for practical deployment.
+> 
+> 従来のアルゴリズムのほとんどは、人間の活力の合図と手作りの機能に基づいて設計されており、設計にはタスクを意識した豊富な事前知識が必要です。生体情報に基づく方法としては、まばたき [2]、[7]、[8]、顔や頭の動き [9]、[10] (うなずきや笑顔など)、視線追跡 [11] 、[12] および遠隔生理学的信号 (例: rPPG [3]、[13]、[14]、[15]) は動的識別のために研究されています。
+> ただし、これらの生理学的活力の手がかりは通常、長期にわたるインタラクティブな顔のビデオからキャプチャされるため、実際の展開には不便です。
 
-![](https://raw.githubusercontent.com/yKesamaru/FacePositionStabilization/master/assets/2023-08-29-19-26-01.png)
+このような理由から、近年ではディープラーニングを用いたアンチスプーフィング手法が注目されています。
 
-https://www.youtube.com/watch?v=8A5cMcsYVHY
+とはいえ、ディープラーニングを用いたアンチスプーフィング手法は、データセットの不足や、データセットの偏り、データセットの大きさなどの問題があります。また、照度やカメラ性能により、現実のシーンでは使いづらい麺もあります。そのため、ディープラーニングを用いたアンチスプーフィング手法は、まだまだ研究段階にあります。
 
-さて、この鳥の頭のように、人間の頭も相対的に静止させることができるでしょうか？
-画像処理の技術を使えば、人間の頭を静止させることができます。
+この記事では、伝統的なアンチスプーフィング手法の1つである、まばたき検知をPythonで実装してみます。
 
-## 元動画
-まずは、元動画をご覧ください。
-![](https://raw.githubusercontent.com/yKesamaru/FacePositionStabilization/master/assets/woman_dance.gif)
+## まばたき検知の原理
+眼のアスペクト比（Eye Aspect Ratio: EAR）は、目の開き具合を数値で表す指標です。EARは目のランドマーク（特定の点）に基づいて計算されます。具体的には、目の上縁と下縁にある点（\( p_2, p_3, p_5, p_6 \)）と、目の左端と右端にある点（\( p_1, p_4 \)）を使用します。
 
-https://pixabay.com/ja/videos/%E5%A5%B3%E6%80%A7-%E9%A1%94-%E8%8B%A5%E3%81%84%E3%81%A7%E3%81%99-%E8%A6%8B%E3%82%8B-78733/
+\[
+\text{EAR} = \frac{{||p_2 - p_6|| + ||p_3 - p_5||}}{2 \times ||p_1 - p_4||}
+\]
 
-動画内で顔の位置が動く場合に、その顔を一定の位置に固定します。
-具体的には、顔の中心を両目の中心に設定し、その位置を固定します。
+この式で使用されている \( || \cdot || \) はユークリッド距離を表します。
 
-https://github.com/yKesamaru/FacePositionStabilization/blob/57a2c6bb66d3ab325a40629872088c6bc9cb7d36/face_position.py#L31-L69
+- \( ||p_2 - p_6|| \) と \( ||p_3 - p_5|| \) は、それぞれ目の上縁と下縁の距離を計算します。これらの距離が大きいほど、目は開いていると言えます。
+- \( ||p_1 - p_4|| \) は目の左端と右端の距離を計算します。この距離は目が開いているか閉じているかにかかわらず、ほぼ一定です。
 
+EARの値は、目が開いているときには比較的大きく、目が閉じているときには小さくなります。この性質を利用して、瞬きを検出できます。具体的には、EARがある閾値よりも小さくなったときに瞬きが発生したと判断することが一般的です。
 
-## 各部分の詳細
-コードの各行を順番に見ていきましょう。
+MediaPipeのFace Meshモデルにおいて、目のランドマークは以下のように対応しています：
 
-### 顔の検出
-```python
-results = face_mesh.process(image_rgb)
-```
+- 左目（左から右へ）
+  - \( p_1 \) : 33
+  - \( p_2 \) : 159
+  - \( p_3 \) : 145
+  - \( p_4 \) : 133
+  - \( p_5 \) : 153
+  - \( p_6 \) : 144
 
-RGB形式の画像（`image_rgb`）をMediaPipeのFace Meshモデルに渡して、顔のランドマークを検出します。
+- 右目（左から右へ）
+  - \( p_1 \) : 263
+  - \( p_2 \) : 386
+  - \( p_3 \) : 374
+  - \( p_4 \) : 362
+  - \( p_5 \) : 380
+  - \( p_6 \) : 373
 
-### 両目の中心を計算
+![](https://developers.google.com/static/mediapipe/images/solutions/face_landmarker_keypoints.png)
 
-```python
-left_eye = face_landmarks.landmark[33]
-right_eye = face_landmarks.landmark[263]
-eye_x = int((left_eye.x + right_eye.x) * width // 2)
-eye_y = int((left_eye.y + right_eye.y) * height // 2)
-```
+くわしくは、[こちらの公式ドキュメント](https://developers.google.com/mediapipe/solutions/vision/face_landmarker)を参照してください。
 
-ここでは、検出された顔のランドマークから左目（`landmark[33]`）と右目（`landmark[263]`）の位置を取得し、それらの平均位置を画像内での座標（`eye_x`, `eye_y`）に変換します。
+これらのランドマーク番号を使用して、EARを計算できます。この情報を元に、`calculate_eye_ratio`関数を適切に修正することで、EARに基づいた瞬き検出が可能です。
 
-### 両目の距離とスケーリングファクターの計算
+実際は、トライアンドエラーを繰り返して「EARの閾値」を決定します。この閾値は、環境によって異なるため、一般的な値は存在しません。
 
-```python
-eye_distance = int(np.sqrt((left_eye.x - right_eye.x)**2 + (left_eye.y - right_eye.y)**2) * width)
-scale_factor = fixed_eye_distance / eye_distance
-```
-
-この部分で、両目の距離（`eye_distance`）とスケーリングファクター（`scale_factor`）を計算します。スケーリングファクターは、固定したい両目の距離（`fixed_eye_distance`）を実際の両目の距離で割って求めます。
-
-### 平行移動とスケーリング
-
-```python
-M_translate_scale = np.float32([[scale_factor, 0, fixed_eye_x - eye_x * scale_factor],
-                                [0, scale_factor, fixed_eye_y - eye_y * scale_factor]])
-image = cv2.warpAffine(image, M_translate_scale, (width, height))
-```
-
-`cv2.warpAffine`関数を使用して、計算したスケーリングファクターと両目の位置に基づいて画像を平行移動とスケーリングを行います。
-
-### 画像の回転
+## 実際のコード
+まばたき検知のコードは、以下のようになります。
 
 ```python
-angle = np.arctan2((left_eye.y - right_eye.y) * height, (left_eye.x - right_eye.x) * width)
-angle = np.degrees(angle)
-M_rotate = cv2.getRotationMatrix2D((fixed_eye_x, fixed_eye_y), angle, 1)
-image = cv2.warpAffine(image, M_rotate, (width, height))
+import sys
+
+sys.path.append('/usr/lib/python3/dist-packages')
+
+import cv2
+import mediapipe as mp
+import numpy as np
+import time
+
+# 顔のランドマークを検出するためのモデルをロード
+mp_face_mesh = mp.solutions.face_mesh
+face_mesh = mp_face_mesh.FaceMesh()
+
+# ビデオファイルからの入力を開始
+cap = cv2.VideoCapture('assets/man.mp4')
+# cap = cv2.VideoCapture('assets/happy.mp4')
+
+# 眼の状態を追跡する変数
+eye_open = True
+
+# EARの閾値
+EAR_THRESHOLD_CLOSE = 1.4  # 目が閉じていると判断する閾値
+EAR_THRESHOLD_OPEN = 1.2   # 目が開いていると判断する閾値
+
+blink_count = 0  # 瞬きの回数をカウント
+
+frame_time = 1 / 30  # 1フレームの時間（秒単位）. 30fpsの場合は1/30
+
+def calculate_eye_ratio(face_landmarks, eye_landmarks):
+    # 眼のアスペクト比を計算する関数
+    eye_points = np.array([[face_landmarks.landmark[i].x, face_landmarks.landmark[i].y] for i in eye_landmarks])
+    # EAR計算
+    A = np.linalg.norm(eye_points[1] - eye_points[5])
+    B = np.linalg.norm(eye_points[2] - eye_points[4])
+    C = np.linalg.norm(eye_points[0] - eye_points[3])
+    eye_ratio = (A + B) / (2.0 * C)
+    return eye_ratio
+
+# 動画のフレームサイズを取得
+width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+# 出力動画の設定
+fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+out = cv2.VideoWriter('output.mp4', fourcc, 30.0, (width, height))
+
+while cap.isOpened():
+    start_time = time.time()  # フレーム処理の開始時間
+    ret, image = cap.read()  # ビデオから画像を読み取る
+    if not ret:
+        print("画像を取得できませんでした")
+        break
+
+    # 画像を処理するためにBGRからRGBに変換
+    image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+    # 顔のランドマークを検出
+    results = face_mesh.process(image_rgb)
+
+    # 瞬きを検出
+    if results.multi_face_landmarks:
+        for face_landmarks in results.multi_face_landmarks:
+            left_eye_ratio = calculate_eye_ratio(face_landmarks, [33, 246, 161, 160, 159, 158, 157, 173])
+            right_eye_ratio = calculate_eye_ratio(face_landmarks, [263, 466, 388, 387, 386, 385, 384, 398])
+
+            # 目が閉じていると判断
+            if left_eye_ratio < EAR_THRESHOLD_CLOSE or right_eye_ratio < EAR_THRESHOLD_CLOSE:
+                eye_open = False
+            # 目が開いていると判断
+            elif left_eye_ratio > EAR_THRESHOLD_OPEN or right_eye_ratio > EAR_THRESHOLD_OPEN:
+                if not eye_open:
+                    blink_count += 1  # 瞬きの回数を増やす
+                eye_open = True
+
+        # 瞬きの回数を画面の右下に描画（フォントサイズは30pt）
+        cv2.putText(image, f"Blink: {blink_count}", (image.shape[1] - 200, image.shape[0] - 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+
+    # 画像を表示
+    cv2.imshow('Blink', image)
+    out.write(image)
+
+    # 'q'キーで終了
+    if cv2.waitKey(10) & 0xFF == ord('q'):
+        break
+
+    end_time = time.time()  # フレーム処理の終了時間
+    elapsed_time = end_time - start_time  # フレーム処理にかかった時間（秒）
+
+    # 次のフレームまでの待機時間を計算
+    wait_time = max(0, frame_time - elapsed_time)
+
+    # 指定した時間だけ待機
+    time.sleep(wait_time)
+
+# ビデオを解放
+cap.release()
+cv2.destroyAllWindows()
 ```
 
-最後に`cv2.warpAffine`を再度使用して、画像を回転させます。回転角度は、両目の位置に基づいて`np.arctan2`関数で計算します。
-
-
-
-## 結果
-![](https://raw.githubusercontent.com/yKesamaru/FacePositionStabilization/master/assets/woman_head_stabilization.gif)
-できました！
-顔の位置が固定されていますね。
-
-## まとめ
-顔の位置を固定する技術は、多くの応用分野で活用されます。
-
-### 顔認証・顔検出
-顔の位置が固定されていると、顔認証や顔検出の精度が向上します。顔が動画内で頻繁に動く場合や、角度が変わる場合に有用です。
-
-### ビデオ会議
-ビデオ会議での顔の位置を固定することで、参加者が話をする際に顔がしっかりとフレーム内に収まるようになります。
-
-### ヒューマンコンピュータインタラクション（HCI）
-顔の動きをトラッキングすることで、より直感的なインターフェイスやコントロールが可能になります。たとえば顔の位置に応じてカーソルを動かすといった応用が考えられます。
-
-### 医療診断
-顔の特定の部分（たとえば、目や口）に焦点を当てる必要がある医療診断でも、この技術は有用です。
-
-以上です。
-今回は鳥の頭のように、人間の頭も相対的に静止させる方法を紹介しました。
 
