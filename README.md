@@ -23,7 +23,7 @@
 > However, these physiological liveness cues are usually captured from long-term interactive face videos, which is inconvenient for practical deployment.
 > 
 > 従来のアルゴリズムのほとんどは、生体であるかどうかこちらから問いかけをする方法とマニュアルの特徴量に基づいて設計されており、設計にはタスクを意識した豊富な事前知識が必要です。生体情報に基づく方法としては、まばたき [2]、[7]、[8]、顔や頭の動き [9]、[10] (うなずきや笑顔など)、視線追跡 [11] 、[12] および遠隔生理学的信号 (例: rPPG [3]、[13]、[14]、[15]) は動的識別のために研究されています。
-> ただし、これらの生理学的活力の手がかりは通常、長期にわたるインタラクティブな顔のビデオからキャプチャされるため、実際の展開には不便です。
+> ただし、これらの生体認証は通常、長期にわたるインタラクティブな顔のビデオからキャプチャされるため、実際の展開には不便です。
 
 このような理由から、近年ではディープラーニングを用いたアンチスプーフィング手法が注目されています。
 
@@ -35,36 +35,35 @@
 ![](https://raw.githubusercontent.com/yKesamaru/FacePositionStabilization/master/assets/2023-08-30-19-53-26.png)
 まばたきに関する論文は、2016年の[Real-Time Eye Blink Detection using Facial Landmarks](https://vision.fe.uni-lj.si/cvww2016/proceedings/papers/05.pdf)に掲載されています。
 
-眼のアスペクト比（Eye Aspect Ratio: EAR）は、目の開き具合を数値で表す指標です。EARは目のランドマーク（特定の点）に基づいて計算されます。具体的には、目の上縁と下縁にある点（\( p_2, p_3, p_5, p_6 \)）と、目の左端と右端にある点（\( p_1, p_4 \)）を使用します。
+眼のアスペクト比（Eye Aspect Ratio: EAR）は、目の開き具合を数値で表す指標です。EARは目のランドマーク（特定の点）に基づいて計算されます。具体的には、目の上縁と下縁にある点$( p_2, p_3, p_5, p_6 )$と、目の左端と右端にある点$( p_1, p_4 )$を使用します。
 
-\[
-\text{EAR} = \frac{{||p_2 - p_6|| + ||p_3 - p_5||}}{2 \times ||p_1 - p_4||}
-\]
+$$\text{EAR} = \frac{{||p_2 - p_6|| + ||p_3 - p_5||}}{2 \times ||p_1 - p_4||}$$
 
-この式で使用されている \( || \cdot || \) はユークリッド距離を表します。
+この式で使用されている $( || \cdot || )$ はユークリッド距離を表します。
 
-- \( ||p_2 - p_6|| \) と \( ||p_3 - p_5|| \) は、それぞれ目の上縁と下縁の距離を計算します。これらの距離が大きいほど、目は開いていると言えます。
-- \( ||p_1 - p_4|| \) は目の左端と右端の距離を計算します。この距離は目が開いているか閉じているかにかかわらず、ほぼ一定です。
+- $( ||p_2 - p_6|| )$ と $( ||p_3 - p_5|| )$ は、それぞれ目の上縁と下縁の距離を計算します。これらの距離が大きいほど、目は開いていると言えます。
+- $( ||p_1 - p_4|| )$ は目の左端と右端の距離を計算します。この距離は目が開いているか閉じているかにかかわらず、ほぼ一定です。
 
 EARの値は、目が開いているときには比較的大きく、目が閉じているときには小さくなります。この性質を利用して、瞬きを検出できます。具体的には、EARがある閾値よりも小さくなったときに瞬きが発生したと判断することが一般的です。
 
 MediaPipeのFace Meshモデルにおいて、目のランドマークは以下のように対応しています：
 
 - 左目（左から右へ）
-  - \( p_1 \) : 33
-  - \( p_2 \) : 159
-  - \( p_3 \) : 145
-  - \( p_4 \) : 133
-  - \( p_5 \) : 153
-  - \( p_6 \) : 144
+  - $( p_1 )$ : 33
+  - $( p_2 )$ : 159
+  - $( p_3 )$ : 145
+  - $( p_4 )$ : 133
+  - $( p_5 )$ : 153
+  - $( p_6 )$ : 144
 
 - 右目（左から右へ）
-  - \( p_1 \) : 263
-  - \( p_2 \) : 386
-  - \( p_3 \) : 374
-  - \( p_4 \) : 362
-  - \( p_5 \) : 380
-  - \( p_6 \) : 373
+  - $( p_1 )$ : 263
+  - $( p_2 )$ : 386
+  - $( p_3 )$ : 374
+  - $( p_4 )$ : 362
+  - $( p_5 )$ : 380
+  - $( p_6 )$ : 373
+
 
 ![](https://developers.google.com/static/mediapipe/images/solutions/face_landmarker_keypoints.png)
 
@@ -84,7 +83,7 @@ MediaPipeのFace Meshモデルにおいて、目のランドマークは以下�
 https://github.com/yKesamaru/FacePositionStabilization/blob/dcfa2203dc820d62684a5d159d58e3b229ff866d/detect_eye_blinks.py#L1-L96
 
 EARの閾値は以下のように設定しました。
-https://github.com/yKesamaru/FacePositionStabilization/blob/dcfa2203dc820d62684a5d159d58e3b229ff866d/detect_eye_blinks.py#L21C1-L24C1
+https://github.com/yKesamaru/FacePositionStabilization/blob/dec28210c7ca2921650562e25cade8e6a33c8c21/detect_eye_blinks.py#L21-L23
 
 EARを求める関数を以下のように定義します。
 https://github.com/yKesamaru/FacePositionStabilization/blob/dcfa2203dc820d62684a5d159d58e3b229ff866d/detect_eye_blinks.py#L29-L37
