@@ -21,7 +21,7 @@
 ## はじめに
 皆さんは、鳥の「頭を静止させる不思議な能力」をご存知ですか？
 試しに「bird head stability」などで検索をかけてみてください。とてもかわいいですよ。
-![](https://raw.githubusercontent.com/yKesamaru/FacePositionStabilization/master/assets/bird_head_stabilzation.gif)
+![](https://raw.githubusercontent.com/yKesamaru/FacePositionStabilization/master/assets/bird_head_stabilization.gif)
 
 調べてみましたが、この現象に特定の名前があるわけではないようです。
 この能力は鳥の首関節の驚異的な柔軟性に起因するそうで、頭を静止させることで、激しい飛行中の環境内オブジェクト追跡を可能にしているそうです。
